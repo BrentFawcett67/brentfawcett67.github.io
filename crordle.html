@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRordle - Clash Royale Wordle</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(180deg, #1a0a3e 0%, #0d1b4b 50%, #0a2a1a 100%);
+      font-family: 'Arial Black', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 8px 32px;
+      color: #fff;
+    }
+
+    .cr-header {
+      width: 100%;
+      max-width: 520px;
+      text-align: center;
+      padding: 20px 0 12px;
+      border-bottom: 2px solid #f4a800;
+      margin-bottom: 14px;
+    }
+
+    .cr-header h1 {
+      font-size: 2.4em;
+      color: #f4a800;
+      text-shadow: 0 2px 10px #7a3c00, 0 0 2px #000;
+      letter-spacing: 4px;
+      font-weight: 900;
+    }
+
+    .cr-header p {
+      font-size: 0.8em;
+      color: #acd4ff;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    #stats-bar {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 10px;
+    }
+
+    .stat { text-align: center; }
+    .stat-num { font-size: 1.6em; font-weight: 900; color: #f4a800; }
+    .stat-lbl { font-size: 0.62em; color: #acd4ff; letter-spacing: 1px; }
+
+    #card-hint {
+      margin: 8px 0 4px;
+      font-size: 0.78em;
+      color: #acd4ff;
+      text-align: center;
+      letter-spacing: 0.5px;
+      min-height: 20px;
+    }
+
+    .card-badge {
+      display: inline-block;
+      border-radius: 20px;
+      font-size: 0.72em;
+      font-weight: 700;
+      padding: 2px 10px;
+      margin: 0 3px;
+      letter-spacing: 0.5px;
+    }
+
+    #message-box {
+      height: 28px;
+      font-size: 0.85em;
+      font-weight: 700;
+      color: #f4a800;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-bottom: 8px;
+      text-shadow: 0 1px 4px #000;
+    }
+
+    #board {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 5px;
+    }
+
+    .tile {
+      width: 52px;
+      height: 52px;
+      border: 2px solid #3a4a6a;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.45em;
+      font-weight: 900;
+      color: #fff;
+      background: #1a2240;
+      text-transform: uppercase;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .tile.correct  { background: #2e7d32; border-color: #66bb6a; box-shadow: inset 0 0 0 2px #a5d6a7; }
+    .tile.present  { background: #b8860b; border-color: #f4a800; box-shadow: inset 0 0 0 2px #ffe082; }
+    .tile.absent   { background: #263045; border-color: #3a4a6a; color: #6a7a9a; }
+    .tile.filled   { border-color: #6a8aaa; background: #1e2d50; }
+
+    .tile.pop   { animation: pop 0.12s ease; }
+    .tile.shake { animation: shake 0.4s ease; }
+    .tile.flip  { animation: flip 0.4s ease forwards; }
+
+    @keyframes pop   { 0%,100%{transform:scale(1)} 50%{transform:scale(1.18)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+    @keyframes flip  { 0%{transform:rotateX(0deg)} 50%{transform:rotateX(90deg)} 100%{transform:rotateX(0deg)} }
+
+    #keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .kb-row {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .key {
+      height: 54px;
+      min-width: 34px;
+      padding: 0 5px;
+      border-radius: 6px;
+      border: 1.5px solid #3a4a6a;
+      background: #2a3a5a;
+      color: #fff;
+      font-size: 0.82em;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      flex: 1;
+      max-width: 42px;
+      transition: background 0.15s;
+    }
+
+    .key.wide { max-width: 64px; font-size: 0.68em; }
+    .key:active { transform: scale(0.95); }
+    .key.correct { background: #2e7d32; border-color: #66bb6a; }
+    .key.present { background: #b8860b; border-color: #f4a800; }
+    .key.absent  { background: #1a2030; border-color: #2a3040; color: #4a5a7a; }
+
+    #play-again {
+      display: none;
+      margin-top: 14px;
+      background: #f4a800;
+      color: #1a0a3e;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 36px;
+      font-size: 1em;
+      font-weight: 900;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    #play-again:hover { background: #ffd740; }
+
+    #external-link {
+      display: inline-block;
+      margin-top: 20px;
+      background: transparent;
+      color: #acd4ff;
+      border: 2px solid #acd4ff;
+      border-radius: 8px;
+      padding: 10px 28px;
+      font-size: 0.85em;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    #external-link:hover { background: #acd4ff; color: #1a0a3e; }
+
+    #answer-reveal {
+      display: none;
+      margin-top: 6px;
+      font-size: 0.85em;
+      color: #ff9966;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cr-header">
+    <h1>&#9876; CRordle</h1>
+    <p>Guess the Clash Royale card &mdash; 6 tries</p>
+  </div>
+
+  <div id="stats-bar">
+    <div class="stat"><div class="stat-num" id="stat-wins">0</div><div class="stat-lbl">Wins</div></div>
+    <div class="stat"><div class="stat-num" id="stat-games">0</div><div class="stat-lbl">Games</div></div>
+    <div class="stat"><div class="stat-num" id="stat-streak">0</div><div class="stat-lbl">Streak</div></div>
+  </div>
+
+  <div id="card-hint"></div>
+  <div id="message-box"></div>
+  <div id="board"></div>
+  <div id="keyboard"></div>
+  <div id="answer-reveal"></div>
+  <button id="play-again" onclick="initGame()">&#9876; New Card</button>
+  <a id="external-link" href="index.html" target="_blank">&#127760; Back to Main Page</a>
+
+  <script>
+    const WORDS = [
+      {word:"GIANT",     hint:"Massive tank that ignores troops",       rarity:"Common"},
+      {word:"WITCH",     hint:"Spawns skeletons, does area damage",     rarity:"Epic"},
+      {word:"GOLEM",     hint:"Biggest tank, splits on death",          rarity:"Epic"},
+      {word:"PEKKA",     hint:"Heavy melee fighter in blue armor",      rarity:"Epic"},
+      {word:"TESLA",     hint:"Hidden defensive building",              rarity:"Common"},
+      {word:"BANDIT",    hint:"Dashes and becomes invincible mid-dash", rarity:"Legendary"},
+      {word:"GOBLIN",    hint:"Fast and cheap ground troop",            rarity:"Common"},
+      {word:"ROCKET",    hint:"Highest damage single spell",            rarity:"Rare"},
+      {word:"KNIGHT",    hint:"Reliable melee tank",                    rarity:"Common"},
+      {word:"CANNON",    hint:"Defensive building targeting ground",    rarity:"Common"},
+      {word:"MINION",    hint:"Single cheap flying unit",               rarity:"Common"},
+      {word:"HUNTER",    hint:"Close range shotgun troop",              rarity:"Epic"},
+      {word:"WIZARD",    hint:"Ranged splash damage caster",            rarity:"Rare"},
+      {word:"ARCHER",    hint:"Ranged damage dealer pair",              rarity:"Common"},
+      {word:"MORTAR",    hint:"Long range splash building",             rarity:"Common"},
+      {word:"VALKYRIE",  hint:"Spinning AoE melee fighter",            rarity:"Rare"},
+      {word:"ELECTRO",   hint:"Zaps and chains to multiple units",     rarity:"Common"},
+      {word:"DRAGON",    hint:"Flying fire-breathing troop",           rarity:"Epic"},
+      {word:"PRINCE",    hint:"Charges and deals double damage",       rarity:"Epic"},
+      {word:"POISON",    hint:"Slowing damage zone spell",             rarity:"Epic"},
+      {word:"BOMBER",    hint:"Throws bombs for splash damage",        rarity:"Common"},
+      {word:"FREEZE",    hint:"Stops all troops and buildings",        rarity:"Epic"},
+      {word:"MIRROR",    hint:"Copies your last played card",          rarity:"Epic"},
+      {word:"SPARKY",    hint:"Charges up and blasts electric shock",  rarity:"Legendary"},
+      {word:"ZAPPIES",   hint:"Three small stun bots",                 rarity:"Rare"},
+      {word:"MINER",     hint:"Tunnels underground to anywhere",       rarity:"Legendary"},
+      {word:"GHOST",     hint:"Turns invisible until attacking",       rarity:"Legendary"},
+      {word:"INFERNO",   hint:"Increasing damage beam building",       rarity:"Rare"},
+      {word:"BALLOON",   hint:"Flies and drops bombs on buildings",    rarity:"Epic"},
+      {word:"ELIXIR",    hint:"Pumps extra elixir over time",          rarity:"Rare"},
+      {word:"FIREBALL",  hint:"Medium damage circular spell",          rarity:"Rare"},
+      {word:"LIGHTNING", hint:"Strikes three highest-health targets",  rarity:"Epic"},
+      {word:"BARBARIAN", hint:"Pack of four sword-wielding fighters",  rarity:"Common"},
+      {word:"GRAVEYARD", hint:"Spawns skeletons across an area",       rarity:"Legendary"},
+      {word:"HOG",       hint:"Rider on a hog that targets buildings", rarity:"Rare"},
+      {word:"LUMBERJACK",hint:"Fast axe fighter, drops rage on death", rarity:"Legendary"},
+      {word:"EXECUTIONER",hint:"Throws axe that travels back and forth",rarity:"Epic"},
+      {word:"SKELETON",  hint:"Cheapest card in the game",            rarity:"Common"},
+      {word:"TOMBSTONE", hint:"Spawns skeletons and drops one on death",rarity:"Rare"},
+      {word:"RASCALS",   hint:"Boy and two girls in a pack",           rarity:"Common"},
+      {word:"BATS",      hint:"Swarm of five flying units",            rarity:"Common"},
+      {word:"GUARDS",    hint:"Three skeletons with shields",          rarity:"Epic"},
+      {word:"MINIPEKKA", hint:"Smaller faster version of the big one", rarity:"Rare"},
+      {word:"MUSKETEER", hint:"Long range single target shooter",      rarity:"Rare"},
+      {word:"BOWLER",    hint:"Rolls boulders through troops",         rarity:"Epic"},
+      {word:"MEGAKNIGHT", hint:"Jumps and smashes on arrival",         rarity:"Legendary"},
+      {word:"FISHERMAN", hint:"Hooks and pulls enemies toward him",    rarity:"Legendary"},
+      {word:"NIGHTWITCH", hint:"Spawns bats instead of skeletons",     rarity:"Legendary"},
+    ];
+
+    const RARITY_COLOR = {
+      Common:    "#60aaff",
+      Rare:      "#9f6fff",
+      Epic:      "#cc44ff",
+      Legendary: "#ff9900"
+    };
+
+    const KB_ROWS = [
+      ['Q','W','E','R','T','Y','U','I','O','P'],
+      ['A','S','D','F','G','H','J','K','L'],
+      ['ENTER','Z','X','C','V','B','N','M','⌫']
+    ];
+
+    const MAX_ROWS = 6;
+    let target, targetWord, wordLen, currentGuess, currentRow, gameOver;
+    let wins = 0, games = 0, streak = 0;
+
+    function pickWord() {
+      return WORDS[Math.floor(Math.random() * WORDS.length)];
+    }
+
+    function initGame() {
+      target = pickWord();
+      targetWord = target.word.toUpperCase();
+      wordLen = targetWord.length;
+      currentGuess = '';
+      currentRow = 0;
+      gameOver = false;
+
+      document.getElementById('message-box').textContent = '';
+      document.getElementById('answer-reveal').style.display = 'none';
+      document.getElementById('play-again').style.display = 'none';
+
+      const rc = RARITY_COLOR[target.rarity];
+      document.getElementById('card-hint').innerHTML =
+        `Hint: ${target.hint} &nbsp;` +
+        `<span class="card-badge" style="background:${rc};color:#fff">${target.rarity}</span>` +
+        `&nbsp;<span style="color:#acd4ff;font-size:0.9em">${wordLen} letters</span>`;
+
+      buildBoard();
+      buildKeyboard();
+    }
+
+    function buildBoard() {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+      for (let r = 0; r < MAX_ROWS; r++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.id = 'row-' + r;
+        for (let c = 0; c < wordLen; c++) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          tile.id = `tile-${r}-${c}`;
+          row.appendChild(tile);
+        }
+        board.appendChild(row);
+      }
+    }
+
+    function buildKeyboard() {
+      const kb = document.getElementById('keyboard');
+      kb.innerHTML = '';
+      KB_ROWS.forEach(row => {
+        const div = document.createElement('div');
+        div.className = 'kb-row';
+        row.forEach(k => {
+          const btn = document.createElement('button');
+          btn.className = 'key' + (k.length > 1 ? ' wide' : '');
+          btn.textContent = k;
+          btn.id = 'key-' + k;
+          btn.addEventListener('click', () => handleKey(k));
+          div.appendChild(btn);
+        });
+        kb.appendChild(div);
+      });
+    }
+
+    function handleKey(k) {
+      if (gameOver) return;
+      if (k === '⌫' || k === 'BACKSPACE') {
+        currentGuess = currentGuess.slice(0, -1);
+        updateCurrentRow();
+      } else if (k === 'ENTER') {
+        submitGuess();
+      } else if (/^[A-Z]$/.test(k) && currentGuess.length < wordLen) {
+        currentGuess += k;
+        updateCurrentRow();
+        const tile = document.getElementById(`tile-${currentRow}-${currentGuess.length - 1}`);
+        if (tile) {
+          tile.classList.add('pop');
+          setTimeout(() => tile.classList.remove('pop'), 150);
+        }
+      }
+    }
+
+    function updateCurrentRow() {
+      for (let c = 0; c < wordLen; c++) {
+        const tile = document.getElementById(`tile-${currentRow}-${c}`);
+        tile.textContent = currentGuess[c] || '';
+        tile.className = 'tile' + (currentGuess[c] ? ' filled' : '');
+      }
+    }
+
+    function submitGuess() {
+      if (currentGuess.length !== wordLen) {
+        showMessage(`Need ${wordLen} letters!`);
+        shakeRow(currentRow);
+        return;
+      }
+
+      const result = scoreGuess(currentGuess, targetWord);
+
+      revealRow(currentRow, currentGuess, result, () => {
+        updateKeyboard(currentGuess, result);
+
+        if (currentGuess === targetWord) {
+          wins++; games++; streak++;
+          updateStats();
+          const msgs = ['To the Arena! ⚔️', 'Crown secured!', 'Three crowns!', 'Legendary play!'];
+          setTimeout(() => {
+            showMessage(msgs[Math.min(streak - 1, msgs.length - 1)]);
+            document.getElementById('play-again').style.display = 'inline-block';
+          }, 300);
+          gameOver = true;
+        } else if (currentRow + 1 >= MAX_ROWS) {
+          games++; streak = 0;
+          updateStats();
+          setTimeout(() => {
+            const rev = document.getElementById('answer-reveal');
+            rev.textContent = 'The card was: ' + targetWord;
+            rev.style.display = 'block';
+            document.getElementById('play-again').style.display = 'inline-block';
+          }, 300);
+          gameOver = true;
+        }
+        currentRow++;
+        currentGuess = '';
+      });
+    }
+
+    function scoreGuess(guess, answer) {
+      const result = Array(guess.length).fill('absent');
+      const ansArr = answer.split('');
+      const used = Array(answer.length).fill(false);
+      guess.split('').forEach((ch, i) => {
+        if (ch === ansArr[i]) { result[i] = 'correct'; used[i] = true; }
+      });
+      guess.split('').forEach((ch, i) => {
+        if (result[i] === 'correct') return;
+        const j = ansArr.findIndex((a, idx) => !used[idx] && a === ch);
+        if (j !== -1) { result[i] = 'present'; used[j] = true; }
+      });
+      return result;
+    }
+
+    function revealRow(row, guess, result, cb) {
+      const delay = 300;
+      result.forEach((r, c) => {
+        setTimeout(() => {
+          const tile = document.getElementById(`tile-${row}-${c}`);
+          tile.classList.add('flip');
+          setTimeout(() => {
+            tile.className = 'tile ' + r;
+            tile.textContent = guess[c];
+          }, 200);
+        }, c * delay);
+      });
+      setTimeout(cb, result.length * delay + 250);
+    }
+
+    function updateKeyboard(guess, result) {
+      const priority = {correct: 3, present: 2, absent: 1};
+      const seen = {};
+      for (let i = 0; i < guess.length; i++) {
+        const ch = guess[i], r = result[i];
+        const key = document.getElementById('key-' + ch);
+        if (!key) continue;
+        if ((priority[r] || 0) > (seen[ch] || 0)) {
+          seen[ch] = priority[r];
+          key.className = 'key ' + r + (key.className.includes('wide') ? ' wide' : '');
+        }
+      }
+    }
+
+    function shakeRow(row) {
+      document.getElementById('row-' + row).querySelectorAll('.tile').forEach(t => {
+        t.classList.add('shake');
+        setTimeout(() => t.classList.remove('shake'), 500);
+      });
+    }
+
+    function showMessage(msg) {
+      const el = document.getElementById('message-box');
+      el.innerHTML = msg;
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { if (!gameOver) el.textContent = ''; }, 2500);
+    }
+
+    function updateStats() {
+      document.getElementById('stat-wins').textContent = wins;
+      document.getElementById('stat-games').textContent = games;
+      document.getElementById('stat-streak').textContent = streak;
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toUpperCase();
+      if (k === 'BACKSPACE') handleKey('⌫');
+      else if (k === 'ENTER') handleKey('ENTER');
+      else if (/^[A-Z]$/.test(k)) handleKey(k);
+    });
+
+    initGame();
+  </script>
+</body>
+</html>
